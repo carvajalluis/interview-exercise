@@ -1,0 +1,99 @@
+org: carvajalluis
+app: verification
+service: verification
+frameworkVersion: '3'
+
+plugins:
+  - serverless-step-functions
+  - serverless-python-requirements
+  - serverless-dotenv-plugin
+
+custom:
+  pythonRequirements:
+      # zip: true
+      noDeploy:
+      - pytest
+      - pandas
+      - numpy
+      - Faker
+
+package:
+  patterns:
+    - '!node_modules/**'
+    - '!seeds/**'
+    - '!venv/**'
+    - '!seeds.py'
+    - '!.tools-version'
+    - '!.vscode/**'
+
+provider:
+  name: aws
+  region: us-west-2
+  stage: dev
+  runtime: python3.10
+  memorySize: 256
+  logRetentionInDays: 30
+  profile: default
+
+functions:
+  batcher:
+    handler: batcher.handler
+  verifier:
+    handler: verifier.handler
+    timeout: 300
+
+stepFunctions:
+  validate: true
+  stateMachines:
+    Workflow:
+      name: Workflow
+      definition:
+        Comment:  A record verification workflow
+        StartAt: Batch
+        States:
+          Batch:
+            Type: Task
+            Resource: !GetAtt batcher.Arn
+            Retry:
+              - ErrorEquals:
+                  - Lambda.ServiceException
+                  - Lambda.AWSLambdaException
+                  - Lambda.SdkClientException
+                  - Lambda.TooManyRequestsException
+                IntervalSeconds: 2
+                MaxAttempts: 6
+                BackoffRate: 2
+            HeartbeatSeconds: 10
+            TimeoutSeconds: 120
+            Next: MapBatches
+          MapBatches:
+            Type: Map
+            ItemProcessor:
+              ProcessorConfig:
+                Mode: DISTRIBUTED
+                ExecutionType: STANDARD
+              StartAt: Verify
+              States:
+                Verify:
+                  Type: Task
+                  Resource: !GetAtt verifier.Arn
+                  Retry:
+                    - ErrorEquals:
+                        - Lambda.ServiceException
+                        - Lambda.AWSLambdaException
+                        - Lambda.SdkClientException
+                        - Lambda.TooManyRequestsException
+                        - MongoLockException
+                      IntervalSeconds: 2
+                      MaxAttempts: 6
+                      BackoffRate: 2
+                  End: true
+                  TimeoutSeconds: 120
+                  HeartbeatSeconds: 10
+            Label: MapBatches
+            MaxConcurrency: 50
+            ToleratedFailureCount: 10
+            End: true
+            ItemsPath: $.body
+
+

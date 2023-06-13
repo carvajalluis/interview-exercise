@@ -1,0 +1,4 @@
+MONGODB_DATABASE=challenge
+MONGODB_COLLECTION_TRANSACTIONS=transactions
+MONGODB_COLLECTION_KEYS=keys
+MONGODB_URI=mongodb+srv://<user>:<password>@<server?/?retryWrites=true&w=majority

@@ -1,0 +1,13 @@
+{
+  "scripts": {
+    "deploy": "serverless deploy --stage dev",
+    "start": "yarn run deploy"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "serverless": "^3.32.2",
+    "serverless-dotenv-plugin": "^6.0.0",
+    "serverless-python-requirements": "^6.0.0",
+    "serverless-step-functions": "3.13.1"
+  }
+}
